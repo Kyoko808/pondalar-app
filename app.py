@@ -111,13 +111,44 @@ with tab1:
 
     if st.button("送信"):
         if user_text.strip():
-            # シンプルな返答の擬似LLM（後で本物のAIに置き換える）
             st.markdown(f"**あなた：** {user_text}")
 
-            pondalar_reply = f"それは面白いですね。`{user_text}` に関連する資料をJapan Search APIから探すこともできますよ。キーワード検索タブで試してみてくださいね🌿"
+            # --------------------------------------------
+            # OpenAI Chat Completions API（GPT-4.1 / 4o-mini）
+            # --------------------------------------------
+            import requests
+            import json
+
+            api_key = st.secrets["OPENAI_API_KEY"]
+
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}"
+            }
+
+            payload = {
+                "model": "gpt-4o-mini",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "あなたは『Pondalar』として、比企丘陵の谷津沼や湿地文化の案内をするAIパートナーです。語尾は「〜です／〜ます」を使い、丁寧かつ中性的に話します。"
+                    },
+                    {
+                        "role": "user",
+                        "content": user_text
+                    }
+                ]
+            }
+
+            response = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers=headers,
+                data=json.dumps(payload)
+            ).json()
+
+            pondalar_reply = response["choices"][0]["message"]["content"]
 
             st.markdown(f"**Pondalar：** {pondalar_reply}")
-
 
 # ============================================
 #   🔍 タブ2：通常検索
