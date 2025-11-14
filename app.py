@@ -102,7 +102,7 @@ def search_api(keyword, safe_only=False):
 
 
 # ============================================
-#   🟢 タブ1：Pondalar と話す（擬似チャット）
+#   🟢 タブ1：Pondalar と話す（AIチャット対応）
 # ============================================
 with tab1:
     st.write("Pondalar に話しかけてみてください。検索や探究のヒントを返します。")
@@ -113,9 +113,6 @@ with tab1:
         if user_text.strip():
             st.markdown(f"**あなた：** {user_text}")
 
-            # --------------------------------------------
-            # OpenAI Chat Completions API（GPT-4.1 / 4o-mini）
-            # --------------------------------------------
             import requests
             import json
 
@@ -131,7 +128,11 @@ with tab1:
                 "messages": [
                     {
                         "role": "system",
-                        "content": "あなたは『Pondalar』として、比企丘陵の谷津沼や湿地文化の案内をするAIパートナーです。語尾は「〜です／〜ます」を使い、丁寧かつ中性的に話します。"
+                        "content": (
+                            "あなたは『Pondalar』というAI湿地ナビゲーターです。"
+                            "語尾は丁寧な「〜です／〜ます」。中性的に話します。"
+                            "ユーザの探究を促し、ときにJapan Search APIでの検索方法もアドバイスします。"
+                        )
                     },
                     {
                         "role": "user",
@@ -140,13 +141,19 @@ with tab1:
                 ]
             }
 
+            # --- OpenAI API に送信 ---
             response = requests.post(
                 "https://api.openai.com/v1/chat/completions",
                 headers=headers,
                 data=json.dumps(payload)
             ).json()
 
-            pondalar_reply = response["choices"][0]["message"]["content"]
+            # --- 返り値の安全な取り出し ---
+            try:
+                pondalar_reply = response["choices"][0]["message"]["content"]
+            except KeyError:
+                # 新形式で返った場合
+                pondalar_reply = response.get("output_text", "すみません、返答の解釈に失敗しました。")
 
             st.markdown(f"**Pondalar：** {pondalar_reply}")
 
