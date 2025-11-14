@@ -139,4 +139,4 @@ with tab2:
                 if item["thumb"]:
                     st.image(item["thumb"])
                 else:
-                    st.image("https://
+                    st.image("https://via.placeholder.com/300x200?text=No+Image")
