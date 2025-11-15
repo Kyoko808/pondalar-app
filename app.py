@@ -1,6 +1,10 @@
 import streamlit as st
 import requests
 import os
+import json
+
+import requests
+import streamlit as st
 
 # ============================
 #   UI 設定（テーマカラーなど）
@@ -26,56 +30,7 @@ body {
     margin-bottom: 20px;
     color: white;
 }
-
-.pondalar-title {
-    font-size: 32px;
-    font-weight: 700;
-    margin: 0;
-}
-
-.pondalar-sub {
-    font-size: 16px;
-    opacity: 0.9;
-}
-
-.card {
-    background: white;
-    padding: 15px;
-    border-radius: 10px;
-    box-shadow: 0px 2px 8px rgba(0,0,0,0.1);
-    margin-bottom: 20px;
-}
-
-.card img {
-    width: 100%;
-    border-radius: 8px;
-    margin-bottom: 10px;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# ============================
-#   ヘッダー
-# ============================
-st.markdown("""
-<div class="header-box">
-  <div class="pondalar-title">🌿 Pondalar — AI 湿地ナビゲーター</div>
-  <div class="pondalar-sub">比企丘陵の自然・文化を学び、探究し、創作につなげるAIパートナー</div>
-</div>
-""", unsafe_allow_html=True)
-
-# ============================
-#       タブ UI
-# ============================
-tab1, tab2, tab3 = st.tabs(["💬 Pondalar と話す", "🔍 キーワード検索", "🛡 安全検索（教育利用可）"])
-
-
-# ============================================
-#   ⛅ Japan Search API 検索（共通関数）
-# ============================================
-def search_api(keyword, safe_only=False):
-    base = "https://jpsearch.go.jp/api/item/search/jps-cross?"
-
+@@ -79,102 +81,147 @@ def search_api(keyword, safe_only=False):
     params = f"keyword={keyword}&size=30"
 
     # 安全検索 → 教育利用可(CCBY/CC0/PDM/incr_edu)
@@ -101,6 +56,31 @@ def search_api(keyword, safe_only=False):
     return items
 
 
+def render_results(results):
+    """共通のカード表示。"""
+    if not results:
+        st.info("検索結果は0件でした。別のキーワードを試してください。")
+        return
+
+    col1, col2 = st.columns(2)
+    for i, item in enumerate(results):
+        with (col1 if i % 2 == 0 else col2):
+            st.markdown("<div class='card'>", unsafe_allow_html=True)
+
+            if item["thumb"]:
+                st.image(item["thumb"])
+            else:
+                st.image("https://via.placeholder.com/300x200?text=No+Image")
+
+            st.markdown(f"**タイトル**：{item['title'] or '不明'}")
+            st.markdown(f"**提供元**：{item['provider'] or '不明'}")
+            st.markdown(f"**権利情報**：{item['rights'] or '記載なし'}")
+            if item["link"]:
+                st.markdown(f"[詳細を見る]({item['link']})")
+
+            st.markdown("</div>", unsafe_allow_html=True)
+
+
 # ============================================
 #   🟢 タブ1：Pondalar と話す（AIチャット対応）
 # ============================================
@@ -111,6 +91,9 @@ with tab1:
 
     if st.button("送信"):
         if user_text.strip():
+        if not user_text.strip():
+            st.warning("メッセージを入力してください。")
+        else:
             st.markdown(f"**あなた：** {user_text}")
 
             import requests
@@ -156,6 +139,63 @@ with tab1:
                 pondalar_reply = response.get("output_text", "すみません、返答の解釈に失敗しました。")
 
             st.markdown(f"**Pondalar：** {pondalar_reply}")
+            api_key = st.secrets.get("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+
+            if not api_key:
+                st.error("OpenAI APIキーが設定されていません。Streamlit Secrets か環境変数に OPENAI_API_KEY を設定してください。")
+            else:
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {api_key}"
+                }
+
+                payload = {
+                    "model": "gpt-4o-mini",
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": (
+                                "あなたは『Pondalar』というAI湿地ナビゲーターです。"
+                                "語尾は丁寧な「〜です／〜ます」。中性的に話します。"
+                                "ユーザの探究を促し、ときにJapan Search APIでの検索方法もアドバイスします。"
+                            )
+                        },
+                        {
+                            "role": "user",
+                            "content": user_text
+                        }
+                    ]
+                }
+
+                try:
+                    response = requests.post(
+                        "https://api.openai.com/v1/chat/completions",
+                        headers=headers,
+                        json=payload,
+                        timeout=30,
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+
+                    pondalar_reply = "すみません、返答の解釈に失敗しました。"
+                    choices = data.get("choices")
+                    if choices:
+                        message = choices[0].get("message", {})
+                        content = message.get("content")
+                        if isinstance(content, list):
+                            pondalar_reply = "".join(
+                                block.get("text", "") for block in content if block.get("type") == "text"
+                            ) or pondalar_reply
+                        else:
+                            pondalar_reply = content or pondalar_reply
+                    else:
+                        pondalar_reply = data.get("output_text", pondalar_reply)
+                except requests.exceptions.RequestException as err:
+                    pondalar_reply = f"API呼び出しでエラーが発生しました：{err}"
+                except (KeyError, ValueError) as err:
+                    pondalar_reply = f"レスポンス解析でエラーが発生しました：{err}"
+
+                st.markdown(f"**Pondalar：** {pondalar_reply}")
 
 # ============================================
 #   🔍 タブ2：通常検索
@@ -168,13 +208,25 @@ with tab2:
     if st.button("検索する 🔍"):
         results = search_api(keyword)
         st.write(f"**検索結果：{len(results)} 件**")
+        render_results(results)
+
+# ============================================
+#   🛡 タブ3：教育利用向け安全検索
+# ============================================
+with tab3:
+    st.write("教育利用できる権利表記のみを対象に検索します。")
 
         col1, col2 = st.columns(2)
         for i, item in enumerate(results):
             with (col1 if i % 2 == 0 else col2):
                 st.markdown("<div class='card'>", unsafe_allow_html=True)
+    safe_keyword = st.text_input("安全検索キーワード", "湿地 (教育用)")
 
                 if item["thumb"]:
                     st.image(item["thumb"])
                 else:
                     st.image("https://via.placeholder.com/300x200?text=No+Image")
+    if st.button("安全に検索する 🛡"):
+        safe_results = search_api(safe_keyword, safe_only=True)
+        st.write(f"**検索結果：{len(safe_results)} 件（教育利用可）**")
+        render_results(safe_results)
