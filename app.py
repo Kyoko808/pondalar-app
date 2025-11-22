@@ -79,13 +79,13 @@ def search_api(keyword, safe_only=False):
 
     params = f"keyword={keyword}&size=50"
 
+    # 安全検索 → 教育利用可(CCBY/CC0/PDM/incr_edu/CCBYSA)
     if safe_only:
-        rights = "ccby,cc0,pdm,incr_edu,ccbysa"
-        params += f"&f-rights={rights}"
+        rights = ["ccby", "cc0", "pdm", "incr_edu", "ccbysa"]
+        for r in rights:
+            params += f"&f-rights={r}"
 
     url = base + params
-
-    # 🔥 追加：実際に呼び出しているURLを表示
     st.write("DEBUG_URL:", url)
 
     res = requests.get(url).json()
