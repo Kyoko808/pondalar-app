@@ -76,24 +76,19 @@ tab1, tab2, tab3 = st.tabs(["💬 Pondalar と話す", "🔍 キーワード検�
 # ============================================
 def search_api(keyword, safe_only=False):
     base = "https://jpsearch.go.jp/api/item/search/jps-cross?"
-    params = f"keyword={keyword}&size=30"
 
-    # 安全検索 → 教育利用可(CCBY/CC0/PDM/incr_edu 等)
+    params = f"keyword={keyword}&size=50"
+
+    # 安全検索 → 教育利用可(CCBY/CC0/PDM/incr_edu/ccbysa)
     if safe_only:
-        rights = ["ccby", "cc0", "pdm", "incr_edu", "ccbysa"]
-        for r in rights:
-            params += f"&f-rights={r}"
+        rights = "ccby,cc0,pdm,incr_edu,ccbysa"
+        params += f"&f-rights={rights}"
 
     url = base + params
-    try:
-        res = requests.get(url, timeout=10)
-        data = res.json()
-    except Exception as e:
-        st.error(f"Japan Search API の呼び出しでエラーが発生しました: {e}")
-        return []
+    res = requests.get(url).json()
 
     items = []
-    for d in data.get("list", []):
+    for d in res.get("list", []):
         c = d.get("common", {})
         items.append({
             "title": c.get("title"),
