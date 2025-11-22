@@ -76,27 +76,27 @@ tab1, tab2, tab3 = st.tabs(["💬 Pondalar と話す", "🔍 キーワード検�
 # ============================================
 def search_api(keyword, safe_only=False):
     base = "https://jpsearch.go.jp/api/item/search/jps-cross?"
+    url = f"{base}keyword={keyword}&size=50"
 
-    params = f"keyword={keyword}&size=50"
-
-    # 安全検索 → 教育利用可(CCBY/CC0/PDM/incr_edu/CCBYSA)
-    if safe_only:
-        rights = ["ccby", "cc0", "pdm", "incr_edu", "ccbysa"]
-        for r in rights:
-            params += f"&f-rights={r}"
-
-    url = base + params
     st.write("DEBUG_URL:", url)
 
-    res = requests.get(url).json()
+    data = requests.get(url).json()
+
+    safe_rights = ["ccby", "cc0", "pdm", "incr_edu", "ccbysa"]
 
     items = []
-    for d in res.get("list", []):
+    for d in data.get("list", []):
         c = d.get("common", {})
+        rights = c.get("contentsRightsType")
+
+        # safe_only=True の時だけ後フィルタリング
+        if safe_only and rights not in safe_rights:
+            continue
+
         items.append({
             "title": c.get("title"),
             "provider": c.get("provider"),
-            "rights": c.get("contentsRightsType"),
+            "rights": rights,
             "link": c.get("linkUrl"),
             "thumb": c.get("thumbnail", "")
         })
