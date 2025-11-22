@@ -79,7 +79,7 @@ def search_api(keyword, safe_only=False):
 
     params = f"keyword={keyword}&size=50"
 
-    # 安全検索 → 教育利用可(CCBY/CC0/PDM/incr_edu/ccbysa)
+    # 安全検索 → 教育利用可(CCBY/CC0/PDM/incr_edu/ccbysa) を OR 指定
     if safe_only:
         rights = "ccby,cc0,pdm,incr_edu,ccbysa"
         params += f"&f-rights={rights}"
